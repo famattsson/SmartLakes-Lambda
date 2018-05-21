@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Linq;
 using System.Data.SqlClient;
 using System.Data;
+using System;
 using Amazon.Lambda.Core;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
@@ -27,9 +28,11 @@ namespace SmartLakesLambda
             TempRecord tempRecord = new TempRecord();
             tempRecord.temperature = input.SelectToken("payload.payload_hex").ToString();
             tempRecord.location = "Don't have this yet!";
-            tempRecord.time = input.SelectToken("payload.Time").ToString();
+            DateTime date = DateTime.UtcNow;
+            date = date.AddHours(2);
+            tempRecord.time = date.ToString("dd/MM/yyyy HH:mm:ss");
 
-            SqlConnection sqlConnection = new SqlConnection("");
+            SqlConnection sqlConnection = new SqlConnection("Data Source=smartlakes.cnhjmr9oh4re.us-east-2.rds.amazonaws.com;Initial Catalog=SmartLakes;Integrated Security=False;User ID=SmartLakesNFK;Password=NFKsmartlakes;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
             string query = "INSERT INTO TempRecords VALUES(@temperature, @location, @time)";
             using (SqlCommand command = new SqlCommand(query, sqlConnection))
             {
