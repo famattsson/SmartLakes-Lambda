@@ -2,6 +2,8 @@ using Newtonsoft.Json.Linq;
 using System.Data.SqlClient;
 using System.Data;
 using System;
+using System.Text;
+using System.IO;
 using Amazon.Lambda.Core;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
@@ -13,21 +15,27 @@ namespace SmartLakesLambda
     {
         struct TempRecord
         {   
-            public string temperature;
+            public float temperature;
             public string location;
             public string time;
         }
 
-        public string FunctionHandler(JObject input,ILambdaContext context)
+        public string FunctionHandler(Stream input,ILambdaContext context)
         {
-            return "Affected rows: " + AddTempRecord(input).ToString();
+            StreamReader streamReader = new StreamReader(input, Encoding.UTF8);
+            string inputString = streamReader.ReadToEnd();
+            JObject inputJson = JObject.Parse(inputString);
+            Console.Write(inputJson);
+            return "Rows affected: " + AddTempRecord(inputJson);
+            
         }
 
         int AddTempRecord(JObject input)
         {
             TempRecord tempRecord = new TempRecord();
-            tempRecord.temperature = input.SelectToken("payload.payload_hex").ToString();
-            tempRecord.location = "Don't have this yet!";
+            var tempHexBytes = input.SelectToken("payload_hex").ToString().Substring(12);
+            tempRecord.temperature = Convert.ToInt32(tempHexBytes, 16)/10;
+            tempRecord.location = "Källbergsgatan 3";
             DateTime date = DateTime.UtcNow;
             date = date.AddHours(2);
             tempRecord.time = date.ToString("dd/MM/yyyy HH:mm:ss");
@@ -36,7 +44,7 @@ namespace SmartLakesLambda
             string query = "INSERT INTO TempRecords VALUES(@temperature, @location, @time)";
             using (SqlCommand command = new SqlCommand(query, sqlConnection))
             {
-                command.Parameters.Add("@temperature", SqlDbType.VarChar).Value = tempRecord.temperature;
+                command.Parameters.Add("@temperature", SqlDbType.Float).Value = tempRecord.temperature;
                 command.Parameters.Add("@location", SqlDbType.VarChar).Value = tempRecord.location;
                 command.Parameters.Add("@time", SqlDbType.VarChar).Value = tempRecord.time;
                 command.Connection.Open();
